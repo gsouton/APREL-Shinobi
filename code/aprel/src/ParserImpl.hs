@@ -2,59 +2,84 @@
 module ParserImpl where
 
 import AST
-import qualified Data.Set as S
 -- import ReadP or Parsec, as relevant
-import Text.ParserCombinators.ReadP
-import Control.Applicative ((<|>), Alternative (empty))
-import Data.Text.Internal.Read (perhaps)
 
+import Control.Applicative ((<|>))
+import Data.Char (isDigit)
+import qualified Data.Set as S
+import Debug.Trace (trace)
+import Text.ParserCombinators.ReadP
 
 type Parser a = ReadP a -- may use synomym for easier portability to Parsec
 
 -- Do not change the type!
 parseRE :: String -> Either String RE
-parseRE input = case readP_to_S (do pRE) input of
-  [] -> Left "Cannot parse"
-  [(regex, _)] -> Right regex
-  _ -> error "could not parse"
+parseRE input = case readP_to_S (do res <- pRE; eof; return res) input of
+  [(ast, "")] -> Right ast
+  _s -> trace ("[parseRE]: failed with: " ++ show _s) Left "Parsing failed"
 
 -- RE   :=  RESeq
 --      |   RE '|' RE
 --      |   RE '&' RE
+-- !! left recursion
+-- ReWrite to :
+-- RE   :=  RESeq RE_
 pRE :: Parser RE
 pRE =
   do
     seq <- pRESeq
-    return seq
-      <|> do
-        left <- pRE
-        char '|'
-        right <- pRE
-        return (RAlt left right)
-      <|> do
-        left <- pRE
-        char '&'
-        right <- pRE
-        return (RConj left right)
+    res <- pRE_ seq
+    trace ("[pRE]: Returns: " ++ show res) return res
+
+-- a | b | c
+-- RE_  :=  '|' RE
+--      |   '&' RE
+--      |   empty
+pRE_ :: RE -> Parser RE
+pRE_ seq =
+  do
+    char '|'
+    seq' <- pRESeq
+    rest <- look
+    trace ("[pRE_]: Just parsed '|', calling pRE_ on : " ++ rest) pRE_ (RAlt seq seq')
+    <|> do
+      char '&'
+      seq' <- pRESeq
+      pRE_ (RConj seq seq')
+    <|> do
+      return seq
 
 -- RESeq    :=  REElt
 --          |   empty
 --          |   RESeq REseq
 pRESeq :: Parser RE
-pRESeq = 
-    do
-        pREElt
-        
+pRESeq =
+  do
+    seqs <- many pREElt
+    case seqs of
+      [re] -> return re
+      _ -> return (RSeq seqs)
+
+
 -- REElt    :=  RERep
 --          |   REElt '!'
+-- This is left recursive....
+-- So let's correct it to
+--
+-- REElt    :=  REREp REElt'
+-- REElt'   :=  '!' REElt' | empty
 pREElt :: Parser RE
-pREElt = 
-    do 
-        pRERep
+pREElt =
+  do
+    trace "[pREElt]: Calling pRERep" pRERep
+
+pREElt_ :: RE -> Parser RE
+pREElt_ rep =
+  do
+    char '!'
+    return (RNeg rep)
     <|> do
-        regex <- pREElt;
-        char '!'
-        return (RNeg regex)
+      return rep
 
 -- RERep    :=  REAtom
 --          |   REAtom '{' Count '}'
@@ -62,79 +87,171 @@ pREElt =
 --          |   REAtom '*'
 --          |   REAtom '+'
 pRERep :: Parser RE
-pRERep = 
-    do 
-        pREAtom
-    <|> do
-        atom <- pREAtom;
-        char '{';
-        count <- pCount;
-        char '}';
-        return (RRepeat atom count)
-    <|> do
-        atom <- pREAtom
-        char '?'
-        return (RRepeat atom (0,1))
-    <|> do
-        atom <- pREAtom
-        char '*'
-        return (RRepeat atom (0, maxBound::Int))
-    <|> do
-        atom <- pREAtom
-        char '+'
-        return (RRepeat atom (1, maxBound::Int))
+pRERep =
+  do
+    atom <- pREAtom
+    rest <- look
+    (trace ("[pREElt]: Calling pRERepCount with rest input string: " ++ rest ++ ", atom: " ++ show atom)) pRERepCount atom
 
--- REAtom   :=  RChar 
+pRERepCount :: RE -> Parser RE
+pRERepCount atom =
+  do
+    char '{'
+    count <- pCount
+    char '}'
+    trace ("[pRERepCount]: Trying to parse {}") return (RRepeat atom count)
+    <|> do
+      char '?'
+      trace ("[pRERepCount]: Trying to parse ?") return (RRepeat atom (0, 1))
+    <|> do
+      char '*'
+      trace ("[pRERepCount]: Trying to parse *") return (RRepeat atom (0, maxBound :: Int))
+    <|> do
+      char '+'
+      trace ("[pRERepCount]: Trying to parse +") return (RRepeat atom (1, maxBound :: Int))
+    <|> do
+      return atom
+
+-- REAtom   :=  RChar
 --          |   Class
 --          |   '\' Number
 --          |   '(' RE ')'
 --          |   '(' '#' RE ')'
-pREAtom :: Parser RE 
-pREAtom = undefined
+pREAtom :: Parser RE
+pREAtom =
+  do
+    pClass
+    <|> do
+      char '\\'
+      number <- pNumber
+      rest <- look
+      trace ("[pREAtom]: parsed backreference, number: " ++ show number ++ " ,rest:" ++ rest) return (RBackref number)
+    <|> do
+      char '('
+      regex <- pRE
+      char ')'
+      return regex
+    <|> do
+      char '('
+      char '#'
+      regex <- pRE
+      char ')'
+      return (RCapture regex)
+    <|> do
+      c <- pRChar
+      return (RClass False (S.singleton c))
 
 -- Count    :=  Number
 --          |   Number ','
 --          |   Number ',' Number
 pCount :: Parser (Int, Int)
-pCount = undefined
+pCount =
+  do
+    n <- pNumber
+    return (n, maxBound :: Int)
+    <|> do
+      n <- pNumber
+      char ','
+      return (n, maxBound :: Int)
+    <|> do
+      n <- pNumber
+      char ','
+      m <- pNumber
+      return (n, m)
 
--- Class    :=  '[' CassItemz ']'
---          |   '[' '^' pClassItemz ']'
+-- Class    :=  '[' ClassItemz ']'
+--          |   '[' '^' ClassItemz ']'
 --          |   '.'
 pClass :: Parser RE
-pClass = undefined
+pClass =
+  do
+    char '['
+    items <- pClassItemz
+    char ']'
+    return (RClass False (S.fromList items))
+    <|> do
+      char '['
+      char '^'
+      items <- pClassItemz
+      char ']'
+      return (RClass True (S.fromList items))
+    <|> do
+      char '.'
+      undefined
 
 -- ClassItemz   :=  empty
---              |  ClassItem ClassItemz 
-pClassItemz :: Parser RE
-pClassItemz = undefined
+--              |  ClassItem ClassItemz
+pClassItemz :: Parser [Char]
+pClassItemz =
+  do
+    l <- many pClassItem
+    return (concat l)
 
--- pClassItem   :=  CChar 
+-- ClassItem   :=  CChar
 --              |   CChar '-' CChar
-pClassItem :: Parser RE
-pClassItem = undefined
+pClassItem :: Parser [Char]
+pClassItem =
+  do
+    c <- pCChar
+    return [c]
+    <|> do
+      begin <- pCChar
+      char '-'
+      end <- pCChar
+      return [begin .. end]
 
 -- RChar    := [ any character except the following: "!#&()*+.?[\{|"]
 --          |   EscChar
-pRChar :: Parser RE
-pRChar = undefined
+pRChar :: Parser Char
+pRChar =
+  do
+    c <- satisfy (\c -> c `notElem` "!#&()*+.?[{|" && c /= '\\')
+    (trace ("[pRChar]: parsed: " ++ show c)) (return c)
+    <|> do
+      pEscChar
 
 -- CChar    := [ any character except the following : "-\]^"]
 --          |   EscChar
-pCChar :: Parser RE
-pCChar = undefined
+pCChar :: Parser Char
+pCChar =
+  do
+    satisfy (\c -> c `notElem` "-]^" && c /= '\\')
+    <|> do pEscChar
 
 -- EscChar  :=  '\' [any character excpet the following '0....9A..Za...z"]
 --          |   '\' 'n'
 --          |   '\' 't'
-pEscChar :: Parser RE
-pEscChar = undefined
+pEscChar :: Parser Char
+pEscChar =
+  do
+    char '\\'
+    satisfy (\c -> c `notElem` ['A' .. 'Z'] ++ ['a' .. 'z'] ++ ['0' .. '9'])
+    <|> do
+      char '\n'
+    <|> do
+      char '\t'
 
+
+pNumber :: Parser Int
+pNumber = 
+  do
+    res <- munch1 isDigit
+    pure (read res)
+
+-- This fails cause it is ambigious
 -- Number   :=  Digit
 --          |   Number Digit
-pNumber :: Parser Int
-pNumber = undefined
+-- Left Recursion !!!
+-- Numberz  :=  Digit
+--          |   Number Digit   
+-- pNumber :: Parser Int
+-- pNumber =
+--   do
+--     digits <- many1 pDigit
+--     pure (read digits)
 
 -- Digit    := [any character from "0..9"]
-pDigit :: Parser Int
-pDigit = undefined
+-- pDigit :: Parser Char
+-- pDigit =
+--   do
+--     satisfy isDigit
