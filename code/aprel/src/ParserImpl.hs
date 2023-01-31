@@ -238,7 +238,6 @@ pNumber =
     res <- munch1 isDigit
     pure (read res)
 
--- This fails cause it is ambigious
 -- Number   :=  Digit
 --          |   Number Digit
 -- Left Recursion !!!
