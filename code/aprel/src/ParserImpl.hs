@@ -177,7 +177,7 @@ pClass =
       return (RClass True (S.fromList items))
     <|> do
       char '.'
-      undefined
+      return (RClass True (S.fromList ""))
 
 -- ClassItemz   :=  empty
 --              |  ClassItem ClassItemz
