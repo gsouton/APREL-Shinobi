@@ -3,19 +3,20 @@
 -- and run against any implementation of the APREL APIs.
 
 import AST
-import Parser
-import Matcher
 -- Do not import from the XXXImpl modules here!
 
+import BackReferences
+import qualified Data.Set as S
+import Matcher
+import Parser
 import Test.Tasty
 import Test.Tasty.HUnit
-import qualified Data.Set as S
 
 main :: IO ()
 main = defaultMain $ localOption (mkTimeout 1000000) tests
 
 tests :: TestTree
-tests = rudimentary -- replace this
+tests = testGroup "tests" [rudimentary, backRefTests] -- replace this
 
 testCaseBad :: Show a => String -> Either String a -> TestTree
 testCaseBad s t =
@@ -26,16 +27,18 @@ testCaseBad s t =
 
 rudimentary :: TestTree
 rudimentary =
-  testGroup "Rudimentary tests"
-    [testCase "parse1" $
-       parseRE "a(#b*)" @?= Right re1,
-     testCaseBad "parse2" $
-       parseRE "(#*b)a",
-     testCase "match1" $
-       matchTop re1 "abb" @?= Just ["bb"],
-     testCase "*match2" $
-       matchTop re1 "bba" @?= Nothing]
+  testGroup
+    "Rudimentary tests"
+    [ testCase "parse1" $
+        parseRE "a(#b*)" @?= Right re1,
+      testCaseBad "parse2" $
+        parseRE "(#*b)a",
+      testCase "match1" $
+        matchTop re1 "abb" @?= Just ["bb"],
+      testCase "*match2" $
+        matchTop re1 "bba" @?= Nothing
+    ]
   where
     re1 = RSeq [rChar 'a', RCapture (rStar (rChar 'b'))]
     rChar c = RClass False (S.singleton c)
-    rStar r = RRepeat r (0,maxBound)
+    rStar r = RRepeat r (0, maxBound)
