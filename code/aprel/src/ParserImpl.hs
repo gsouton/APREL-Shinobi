@@ -14,7 +14,7 @@ type Parser a = ReadP a -- may use synomym for easier portability to Parsec
 
 -- Do not change the type!
 parseRE :: String -> Either String RE
-parseRE input = case readP_to_S (do res <- pRE; eof; return res) input of
+parseRE input = case readP_to_S (do res <- startParsing; eof; return res) input of
   [(ast, "")] -> Right ast
   _s -> trace ("[parseRE]: failed with: " ++ show _s) Left "Parsing failed"
 
@@ -22,38 +22,36 @@ parseRE input = case readP_to_S (do res <- pRE; eof; return res) input of
 --      |   RE '|' RE
 --      |   RE '&' RE
 -- !! left recursion
+
 -- ReWrite to :
--- RE   :=  RESeq RE_
-pRE :: Parser RE
-pRE =
+-- RE   :=  RESeq | RE_
+startParsing :: Parser RE
+startParsing =
   do
     input <- look
     if input == ""
-      then return (RSeq [])
-      else do
-        seq <- pRESeq
-        pRE_ seq
+      then do return (RSeq [])
+      else do pRE
 
--- {- trace ("[pRE]: Returns: " ++ show res) -} return res
+pRE :: Parser RE
+pRE =
+  do
+    seq <- pRESeq
+    pRE_ seq
 
--- a | b | c
--- RE_  :=  '|' RE
---      |   '&' RE
---      |   empty
 pRE_ :: RE -> Parser RE
-pRE_ seq =
+pRE_ seq1 =
   do
     char '&'
-    seq' <- pRESeq
-    pRE_ (RConj seq seq')
-    -- rest <- look
-    -- trace ("[pRE_]: Just parsed '|', calling pRE_ on : " ++ rest) pRE_ (RAlt seq seq')
-    <|> do
-      char '|'
-      seq' <- pRESeq
-      pRE_ (RAlt seq seq')
-    <|> do
-      return seq
+    seq2 <- pRESeq
+    pRE_ (RConj seq1 seq2)
+  <|> do
+    char '|'
+    seq2 <- pRESeq
+    pRE_ (RAlt seq1 seq2)
+    <|> do return seq1
+
+-- RE_  := '|' RE RE_
 
 -- RESeq    :=  REElt
 --          |   empty
