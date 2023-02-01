@@ -28,8 +28,9 @@ pRE :: Parser RE
 pRE =
   do
     seq <- pRESeq
-    res <- pRE_ seq
-    trace ("[pRE]: Returns: " ++ show res) return res
+    pRE_ seq
+
+-- {- trace ("[pRE]: Returns: " ++ show res) -} return res
 
 -- a | b | c
 -- RE_  :=  '|' RE
@@ -40,8 +41,9 @@ pRE_ seq =
   do
     char '|'
     seq' <- pRESeq
-    rest <- look
-    trace ("[pRE_]: Just parsed '|', calling pRE_ on : " ++ rest) pRE_ (RAlt seq seq')
+    pRE_ (RAlt seq seq')
+    -- rest <- look
+    -- trace ("[pRE_]: Just parsed '|', calling pRE_ on : " ++ rest) pRE_ (RAlt seq seq')
     <|> do
       char '&'
       seq' <- pRESeq
@@ -60,7 +62,6 @@ pRESeq =
       [re] -> return re
       _ -> return (RSeq seqs)
 
-
 -- REElt    :=  RERep
 --          |   REElt '!'
 -- This is left recursive....
@@ -71,7 +72,9 @@ pRESeq =
 pREElt :: Parser RE
 pREElt =
   do
-    trace "[pREElt]: Calling pRERep" pRERep
+    pRERep
+
+-- trace "[pREElt]: Calling pRERep" pRERep
 
 pREElt_ :: RE -> Parser RE
 pREElt_ rep =
@@ -90,8 +93,10 @@ pRERep :: Parser RE
 pRERep =
   do
     atom <- pREAtom
-    rest <- look
-    (trace ("[pREElt]: Calling pRERepCount with rest input string: " ++ rest ++ ", atom: " ++ show atom)) pRERepCount atom
+    pRERepCount atom
+
+-- rest <- look
+-- (trace ("[pREElt]: Calling pRERepCount with rest input string: " ++ rest ++ ", atom: " ++ show atom)) pRERepCount atom
 
 pRERepCount :: RE -> Parser RE
 pRERepCount atom =
@@ -99,16 +104,20 @@ pRERepCount atom =
     char '{'
     count <- pCount
     char '}'
-    trace ("[pRERepCount]: Trying to parse {}") return (RRepeat atom count)
+    return (RRepeat atom count)
+    -- trace ("[pRERepCount]: Trying to parse {}") return (RRepeat atom count)
     <|> do
       char '?'
-      trace ("[pRERepCount]: Trying to parse ?") return (RRepeat atom (0, 1))
+      return (RRepeat atom (0, 1))
+      -- trace ("[pRERepCount]: Trying to parse ?") return (RRepeat atom (0, 1))
     <|> do
       char '*'
-      trace ("[pRERepCount]: Trying to parse *") return (RRepeat atom (0, maxBound :: Int))
+      return (RRepeat atom (0, maxBound :: Int))
+      -- trace ("[pRERepCount]: Trying to parse *") return (RRepeat atom (0, maxBound :: Int))
     <|> do
       char '+'
-      trace ("[pRERepCount]: Trying to parse +") return (RRepeat atom (1, maxBound :: Int))
+      return (RRepeat atom (1, maxBound :: Int))
+      -- trace ("[pRERepCount]: Trying to parse +") return (RRepeat atom (1, maxBound :: Int))
     <|> do
       return atom
 
@@ -124,8 +133,9 @@ pREAtom =
     <|> do
       char '\\'
       number <- pNumber
-      rest <- look
-      trace ("[pREAtom]: parsed backreference, number: " ++ show number ++ " ,rest:" ++ rest) return (RBackref number)
+      return (RBackref number)
+      -- rest <- look
+      -- trace ("[pREAtom]: parsed backreference, number: " ++ show number ++ " ,rest:" ++ rest) return (RBackref number)
     <|> do
       char '('
       regex <- pRE
@@ -205,8 +215,8 @@ pClassItem =
 pRChar :: Parser Char
 pRChar =
   do
-    c <- satisfy (\c -> c `notElem` "!#&()*+.?[{|" && c /= '\\')
-    (trace ("[pRChar]: parsed: " ++ show c)) (return c)
+    satisfy (\c -> c `notElem` "!#&()*+.?[{|" && c /= '\\')
+    -- (trace ("[pRChar]: parsed: " ++ show c)) (return c)
     <|> do
       pEscChar
 
@@ -231,9 +241,8 @@ pEscChar =
     <|> do
       char '\t'
 
-
 pNumber :: Parser Int
-pNumber = 
+pNumber =
   do
     res <- munch1 isDigit
     pure (read res)
@@ -242,7 +251,7 @@ pNumber =
 --          |   Number Digit
 -- Left Recursion !!!
 -- Numberz  :=  Digit
---          |   Number Digit   
+--          |   Number Digit
 -- pNumber :: Parser Int
 -- pNumber =
 --   do
