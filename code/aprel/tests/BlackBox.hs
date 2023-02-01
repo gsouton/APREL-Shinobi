@@ -5,18 +5,21 @@
 import AST
 -- Do not import from the XXXImpl modules here!
 
-import BackReferences
 import qualified Data.Set as S
 import Matcher
 import Parser
 import Test.Tasty
 import Test.Tasty.HUnit
 
+--- Test Suite
+import BackReferences
+import Alternate
+
 main :: IO ()
 main = defaultMain $ localOption (mkTimeout 1000000) tests
 
 tests :: TestTree
-tests = testGroup "tests" [rudimentary, backRefTests] -- replace this
+tests = testGroup "tests" [rudimentary, reBackRefTests, reAltTests] -- replace this
 
 testCaseBad :: Show a => String -> Either String a -> TestTree
 testCaseBad s t =

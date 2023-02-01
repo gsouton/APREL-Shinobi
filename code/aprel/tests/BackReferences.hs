@@ -1,4 +1,4 @@
-module BackReferences (backRefTests) where
+module BackReferences (reBackRefTests) where
 
 import AST
 import Parser
@@ -6,8 +6,8 @@ import Test.Tasty
 import Test.Tasty.HUnit
 import Text.Parsec.Token (GenTokenParser (whiteSpace))
 
-backRefTests :: TestTree
-backRefTests =
+reBackRefTests :: TestTree
+reBackRefTests =
   testGroup
     "Test backreferences"
     [ alone
