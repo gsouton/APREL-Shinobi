@@ -2,24 +2,32 @@
 -- required to use Tasty, but be sure that your test suite can be build
 -- and run against any implementation of the APREL APIs.
 
-import AST
 -- Do not import from the XXXImpl modules here!
-
 import qualified Data.Set as S
 import Matcher
 import Parser
+import AST
 import Test.Tasty
 import Test.Tasty.HUnit
 
---- Test Suite
-import BackReferences
+--- Test Suite (Parser)
 import Alternate
+import BackReferences
+import Negation
+---
 
 main :: IO ()
 main = defaultMain $ localOption (mkTimeout 1000000) tests
 
 tests :: TestTree
-tests = testGroup "tests" [rudimentary, reBackRefTests, reAltTests] -- replace this
+tests =
+  testGroup
+    "tests"
+    [ rudimentary,
+      reBackRefTests,
+      reAltTests,
+      reNegationTests
+    ] -- replace this
 
 testCaseBad :: Show a => String -> Either String a -> TestTree
 testCaseBad s t =
