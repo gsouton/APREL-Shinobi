@@ -9,7 +9,7 @@ import Text.Parsec.Token (GenTokenParser (whiteSpace))
 reBackRefTests :: TestTree
 reBackRefTests =
   testGroup
-    "Test backreferences"
+    "--- Test backreferences '\\num' ---"
     [ alone
     ]
 
