@@ -16,6 +16,7 @@ import BackReferences
 import Negation
 import Repetition
 import Conjunction
+import ConjunctionAndAlternation
 ---
 
 main :: IO ()
@@ -31,7 +32,8 @@ tests =
       reAltTests,
       reNegationTests,
       reRepetitionTests,
-      reConjunctionTests
+      reConjunctionTests,
+      reConjunctionAndAlternationTests
     ] -- replace this
 
 testCaseBad :: Show a => String -> Either String a -> TestTree
