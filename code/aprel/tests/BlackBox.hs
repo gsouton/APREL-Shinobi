@@ -14,6 +14,7 @@ import Test.Tasty.HUnit
 import Alternate
 import BackReferences
 import Negation
+import Repetition
 ---
 
 main :: IO ()
@@ -23,10 +24,12 @@ tests :: TestTree
 tests =
   testGroup
     "tests"
-    [ rudimentary,
+    [ 
+      rudimentary,
       reBackRefTests,
       reAltTests,
-      reNegationTests
+      reNegationTests,
+      reRepetitionTests
     ] -- replace this
 
 testCaseBad :: Show a => String -> Either String a -> TestTree
