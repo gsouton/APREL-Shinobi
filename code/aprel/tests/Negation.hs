@@ -10,7 +10,7 @@ import Text.Parsec.Token (GenTokenParser (whiteSpace))
 reNegationTests :: TestTree
 reNegationTests =
   testGroup
-    "Test Negation !"
+    "--- Test Negation '!' ---"
     [ rudimentary,
       shouldFail
     ]

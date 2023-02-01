@@ -10,7 +10,7 @@ import Text.Parsec.Token (GenTokenParser (whiteSpace))
 reAltTests :: TestTree
 reAltTests =
   testGroup
-    "Test Alternation |"
+    "--- Test Alternation '|' ---"
     [ rudimentary,
       shouldFail
     ]

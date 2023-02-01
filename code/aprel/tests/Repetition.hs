@@ -10,7 +10,7 @@ import Text.Parsec.Token (GenTokenParser (whiteSpace))
 reRepetitionTests :: TestTree
 reRepetitionTests =
   testGroup
-    "Test Negation !"
+    "--- Test Repetitions (*, +, ?, {n, m}) ---"
     [ rudimentary,
       shouldFail
     ]
