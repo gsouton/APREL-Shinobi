@@ -76,15 +76,14 @@ pRESeq =
 pREElt :: Parser RE
 pREElt =
   do
-    pRERep
-
--- trace "[pREElt]: Calling pRERep" pRERep
+    rep <- pRERep
+    pREElt_ rep
 
 pREElt_ :: RE -> Parser RE
 pREElt_ rep =
   do
     char '!'
-    return (RNeg rep)
+    pREElt_ (RNeg rep)
     <|> do
       return rep
 
