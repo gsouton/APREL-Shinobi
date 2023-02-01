@@ -38,7 +38,10 @@ rudimentary =
           @?= Right re6,
       testCase i7 $
         parseRE i7
-          @?= Right re7
+          @?= Right re7,
+      testCase "empty string" $
+        parseRE i8
+          @?= Right re8
     ]
   where
     i1 = "a"
@@ -48,6 +51,7 @@ rudimentary =
     i5 = "(#a)b"
     i6 = "a|b"
     i7 = "a|bc"
+    i8 = ""
 
     re1 = classFrom "a"
     re2 = RSeq [classFrom "a", classFrom "b"]
@@ -56,6 +60,7 @@ rudimentary =
     re5 = RSeq [RCapture (classFrom "a"), classFrom "b"]
     re6 = RAlt (classFrom "a") (classFrom "b")
     re7 = RAlt (classFrom "a") (RSeq [classFrom "b", classFrom "c"])
+    re8 = RSeq []
     
 classFrom :: String -> RE
 classFrom input = 
