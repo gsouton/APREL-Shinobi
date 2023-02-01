@@ -15,7 +15,7 @@ type Parser a = ReadP a -- may use synomym for easier portability to Parsec
 -- Do not change the type!
 parseRE :: String -> Either String RE
 parseRE input = case readP_to_S (do res <- startParsing; eof; return res) input of
-  [(ast, "")] -> Right ast
+  [(ast, "")] -> trace ("Parsing success: " ++ show ast) Right ast
   _s -> trace ("[parseRE]: failed with: " ++ show _s) Left "Parsing failed"
 
 -- RE   :=  RESeq
