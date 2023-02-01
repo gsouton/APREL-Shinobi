@@ -27,8 +27,12 @@ parseRE input = case readP_to_S (do res <- pRE; eof; return res) input of
 pRE :: Parser RE
 pRE =
   do
-    seq <- pRESeq
-    pRE_ seq
+    input <- look
+    if input == ""
+      then return (RSeq [])
+      else do
+        seq <- pRESeq
+        pRE_ seq
 
 -- {- trace ("[pRE]: Returns: " ++ show res) -} return res
 
@@ -39,15 +43,15 @@ pRE =
 pRE_ :: RE -> Parser RE
 pRE_ seq =
   do
-    char '|'
+    char '&'
     seq' <- pRESeq
-    pRE_ (RAlt seq seq')
+    pRE_ (RConj seq seq')
     -- rest <- look
     -- trace ("[pRE_]: Just parsed '|', calling pRE_ on : " ++ rest) pRE_ (RAlt seq seq')
     <|> do
-      char '&'
+      char '|'
       seq' <- pRESeq
-      pRE_ (RConj seq seq')
+      pRE_ (RAlt seq seq')
     <|> do
       return seq
 
@@ -57,7 +61,7 @@ pRE_ seq =
 pRESeq :: Parser RE
 pRESeq =
   do
-    seqs <- many pREElt
+    seqs <- many1 pREElt
     case seqs of
       [re] -> return re
       _ -> return (RSeq seqs)
@@ -109,15 +113,15 @@ pRERepCount atom =
     <|> do
       char '?'
       return (RRepeat atom (0, 1))
-      -- trace ("[pRERepCount]: Trying to parse ?") return (RRepeat atom (0, 1))
+    -- trace ("[pRERepCount]: Trying to parse ?") return (RRepeat atom (0, 1))
     <|> do
       char '*'
       return (RRepeat atom (0, maxBound :: Int))
-      -- trace ("[pRERepCount]: Trying to parse *") return (RRepeat atom (0, maxBound :: Int))
+    -- trace ("[pRERepCount]: Trying to parse *") return (RRepeat atom (0, maxBound :: Int))
     <|> do
       char '+'
       return (RRepeat atom (1, maxBound :: Int))
-      -- trace ("[pRERepCount]: Trying to parse +") return (RRepeat atom (1, maxBound :: Int))
+    -- trace ("[pRERepCount]: Trying to parse +") return (RRepeat atom (1, maxBound :: Int))
     <|> do
       return atom
 
@@ -134,8 +138,8 @@ pREAtom =
       char '\\'
       number <- pNumber
       return (RBackref number)
-      -- rest <- look
-      -- trace ("[pREAtom]: parsed backreference, number: " ++ show number ++ " ,rest:" ++ rest) return (RBackref number)
+    -- rest <- look
+    -- trace ("[pREAtom]: parsed backreference, number: " ++ show number ++ " ,rest:" ++ rest) return (RBackref number)
     <|> do
       char '('
       regex <- pRE
