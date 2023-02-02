@@ -48,7 +48,6 @@ prepare() ->
         {error, Reason} ->
             {error, Reason}
     end.
-    
 
 -spec register_command(Shinobi :: shinobi(), Cmd :: atom(), Fun :: fun((term()) -> term())) -> ok | {error, already_defined}.
 register_command(Shinobi, Cmd, Fun) ->
@@ -61,7 +60,7 @@ register_command(Shinobi, Cmd, Fun) ->
 
 -spec operation(shinobi(), keikaku()) -> {ok, operation_id()} | {error, Error :: any()}.
 operation(Shinobi, Keikaku) ->
-    gen_server:call(Shinobi, Keikaku).
+gen_server:call(Shinobi, Keikaku).
 
 -spec ambush(operation_id(), fun((result()) -> any())) -> any().
 ambush(_OperationId, _Fun) ->
@@ -71,6 +70,27 @@ ambush(_OperationId, _Fun) ->
 report(OperationId) ->
     operation:get_state(OperationId).
 
+% -spec validate(keikaku()) -> keikaku().
+validate({rudiment, Cmd, Arg}, State) ->
+    case maps:is_key(Cmd, State#state.commands) of
+        true ->
+            Fun = maps:get(Cmd, State#state.commands),
+            {rudiment, Fun, Arg};
+        false ->
+            {error, unknown_cmd}
+    end;
+
+validate({trap, Limit}, _State) ->
+    if 
+        Limit < 0 ->
+            {error, invalid_limit};
+        true ->
+            {trap, Limit}
+    end;
+
+            
+validate(_Keikaku, _State) ->
+    undefined.
 
 %%% Callbacks gen_server
 
@@ -89,83 +109,116 @@ handle_call({register, Cmd, Fun}, _From, State) ->
     end;
 
 
-%%% Operations %%%
 handle_call({rudiment, Cmd, Arg}, _From, State) ->
-    case maps:is_key(Cmd, State#state.commands) of
-        true ->
-            case operation:prepare() of
-                {ok, OperationId} ->
-                    Fun = maps:get(Cmd, State#state.commands),
-                    operation:start(OperationId, {rudiment, Fun, Arg}),
-                    {reply, {ok, OperationId}, State};
-                {error, Reason} ->
-                    {reply, {error, Reason}, State}
-            end;
-        false ->
-            {reply, {error, unknow_cmd}, State}
+    case validate({rudiment, Cmd, Arg}, State) of
+        {error, Reason} -> {reply, {error, Reason}, State};
+
+        NewKeikaku -> case kunai:start(NewKeikaku) of
+                          {ok, OperationId} ->
+                              {reply, {ok, OperationId}, State};
+                          {error, Reason} -> 
+                              {reply, {error, Reason}, State}
+                      end
     end;
 
 handle_call({trap, Limit}, _From, State) ->
-    if 
-        Limit < 0 ->
-            {reply, {error, invalid_limit}, State};
-        true ->
-            case operation:prepare() of 
-                {ok, OperationId} ->
-                    operation:start(OperationId, {trap, Limit});
-                {error, Reason} ->
-                    {reply, {error, Reason}, State}
-            end
+    case validate({trap, Limit}, State) of
+        {error, Reason} -> {reply, {error, Reason}, State};
+        NewKeikaku -> case kunai:start(NewKeikaku) of
+                          {ok, OperationId} ->
+                              {reply, {ok, OperationId}, State};
+                          {error, Reason} -> 
+                              {reply, {error, Reason}, State}
+                      end
     end;
 
-handle_call({progression, SubKeikakus}, _From, State) ->
-    if SubKeikakus == [] ->
-           {reply, {error, invalid_subkeikakus}, State};
-       true ->
-           case operation:prepare() of 
-               {ok, OperationId} ->
-                   operation:start(OperationId, {progession, SubKeikakus}),
-                   {reply, {ok, OperationId}, State};
-                {error, Reason} ->
-                   {reply, {error, Reason}, State}
-            end
-    end;
+%%% Operations %%%
+% handle_call({rudiment, Cmd, Arg}, _From, State) ->
+%     case maps:is_key(Cmd, State#state.commands) of
+%         true ->
+%             case kunai:prepare() of
+%                 {ok, OperationId} ->
+%                     Fun = maps:get(Cmd, State#state.commands),
+%                     kunai:start(OperationId, {rudiment, Fun, Arg}),
+%                     {reply, {ok, OperationId}, State};
+%                 {error, Reason} ->
+%                     {reply, {error, Reason}, State}
+%             end;
+%         false ->
+%             {reply, {error, unknow_cmd}, State}
+%     end;
 
-handle_call({race, SubKeikakus}, _From, State) ->
-   case operation:prepare() of 
-       {ok, OperationId} ->
-           operation:start(OperationId, {race, SubKeikakus}),
-           {reply, {ok, OperationId}, State};
-        {error, Reason} ->
-           {reply, {error, Reason}, State}
-    end;
-
-handle_call({side_by_side, SubKeikakus}, _From, State) ->
-   case operation:prepare() of 
-       {ok, OperationId} ->
-           operation:start(OperationId, {side_by_side, SubKeikakus}),
-           {reply, {ok, OperationId}, State};
-        {error, Reason} ->
-           {reply, {error, Reason}, State}
-    end;
-
-handle_call({feint, SubKeikakus}, _From, State) ->
-   case operation:prepare() of 
-       {ok, OperationId} ->
-           operation:start(OperationId, {feint, SubKeikakus}),
-           {reply, {ok, OperationId}, State};
-        {error, Reason} ->
-           {reply, {error, Reason}, State}
-    end;
-
-handle_call({relay, SubKeikaku, FunOperation}, _From, State) ->
-   case operation:prepare() of 
-       {ok, OperationId} ->
-           operation:start(OperationId, {relay, SubKeikaku, FunOperation}),
-           {reply, {ok, OperationId}, State};
-        {error, Reason} ->
-           {reply, {error, Reason}, State}
-    end;
+% handle_call({trap, Cmd, Arg}, _From, State) ->
+%     case validate({rudiment, Cmd, Arg}) of
+%         NewKeikaku -> case kunai:start(NewKeikaku) of
+%                           {ok, OperationId} ->
+%                               {reply, {ok, OperationId}, State};
+%                           {error, Reason} -> 
+%                               {reply, {error, Reason}, State}
+%                       end;
+%         {error, Reason} -> {reply, {error, Reason}, State}
+%     end;
+% handle_call({trap, Limit}, _From, State) ->
+%     if 
+%         Limit < 0 ->
+%             {reply, {error, invalid_limit}, State};
+%         true ->
+%             case kunai:prepare() of 
+%                 {ok, OperationId} ->
+%                     kunai:start(OperationId, {trap, Limit});
+%                 {error, Reason} ->
+%                     {reply, {error, Reason}, State}
+%             end
+%     end;
+%
+% handle_call({progression, SubKeikakus}, _From, State) ->
+%     if SubKeikakus == [] ->
+%            {reply, {error, invalid_subkeikakus}, State};
+%        true ->
+%            case kunai:prepare() of 
+%                {ok, OperationId} ->
+%                    kunai:start(OperationId, {progession, SubKeikakus}),
+%                    {reply, {ok, OperationId}, State};
+%                 {error, Reason} ->
+%                    {reply, {error, Reason}, State}
+%             end
+%     end;
+%
+% handle_call({race, SubKeikakus}, _From, State) ->
+%    case kunai:prepare() of 
+%        {ok, OperationId} ->
+%            kunai:start(OperationId, {race, SubKeikakus}),
+%            {reply, {ok, OperationId}, State};
+%         {error, Reason} ->
+%            {reply, {error, Reason}, State}
+%     end;
+%
+% handle_call({side_by_side, SubKeikakus}, _From, State) ->
+%    case kunai:prepare() of 
+%        {ok, OperationId} ->
+%            kunai:start(OperationId, {side_by_side, SubKeikakus}),
+%            {reply, {ok, OperationId}, State};
+%         {error, Reason} ->
+%            {reply, {error, Reason}, State}
+%     end;
+%
+% handle_call({feint, SubKeikakus}, _From, State) ->
+%    case kunai:prepare() of 
+%        {ok, OperationId} ->
+%            kunai:start(OperationId, {feint, SubKeikakus}),
+%            {reply, {ok, OperationId}, State};
+%         {error, Reason} ->
+%            {reply, {error, Reason}, State}
+%     end;
+%
+% handle_call({relay, SubKeikaku, FunOperation}, _From, State) ->
+%    case kunai:prepare() of 
+%        {ok, OperationId} ->
+%            kunai:start(OperationId, {relay, SubKeikaku, FunOperation}),
+%            {reply, {ok, OperationId}, State};
+%         {error, Reason} ->
+%            {reply, {error, Reason}, State}
+%     end;
     
 %%%%%%%%%%%%%%%%%%
 handle_call(Request, _From, State) -> 

@@ -21,7 +21,7 @@ test_everything() ->
   test_all().
 
 prepare_shinobi() ->
-  {"Start shinobi, and nothing else",
+  {"Prepare shinobi, and nothing else",
    fun() -> ?assertMatch({ok, _}, shinobi:prepare()) end}.
 
 register_command() ->
