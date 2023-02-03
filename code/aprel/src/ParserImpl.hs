@@ -15,8 +15,8 @@ type Parser a = ReadP a -- may use synomym for easier portability to Parsec
 -- Do not change the type!
 parseRE :: String -> Either String RE
 parseRE input = case readP_to_S (do res <- startParsing; eof; return res) input of
-  [(ast, "")] -> trace ("Parsing success: " ++ show ast) Right ast
-  _s -> trace ("[parseRE]: failed with: " ++ show _s) Left "Parsing failed"
+  [(ast, "")] -> Right ast
+  _s -> Left "Parsing failed"
 
 -- RE   :=  RESeq
 --      |   RE '|' RE
@@ -45,10 +45,10 @@ pRE_ seq1 =
     char '&'
     seq2 <- pRESeq
     pRE_ (RConj seq1 seq2)
-  <|> do
-    char '|'
-    seq2 <- pRESeq
-    pRE_ (RAlt seq1 seq2)
+    <|> do
+      char '|'
+      seq2 <- pRESeq
+      pRE_ (RAlt seq1 seq2)
     <|> do return seq1
 
 -- RE_  := '|' RE RE_
@@ -103,22 +103,21 @@ pRERepCount :: RE -> Parser RE
 pRERepCount atom =
   do
     char '{'
-    count <- pCount
-    char '}'
-    return (RRepeat atom count)
-    -- trace ("[pRERepCount]: Trying to parse {}") return (RRepeat atom count)
+    (minBound, maxBound) <- pCount
+    if minBound > maxBound
+      then pfail
+      else do
+        char '}'
+        return (RRepeat atom (minBound, maxBound))
     <|> do
       char '?'
       return (RRepeat atom (0, 1))
-    -- trace ("[pRERepCount]: Trying to parse ?") return (RRepeat atom (0, 1))
     <|> do
       char '*'
       return (RRepeat atom (0, maxBound :: Int))
-    -- trace ("[pRERepCount]: Trying to parse *") return (RRepeat atom (0, maxBound :: Int))
     <|> do
       char '+'
       return (RRepeat atom (1, maxBound :: Int))
-    -- trace ("[pRERepCount]: Trying to parse +") return (RRepeat atom (1, maxBound :: Int))
     <|> do
       return atom
 
@@ -135,8 +134,6 @@ pREAtom =
       char '\\'
       number <- pNumber
       return (RBackref number)
-    -- rest <- look
-    -- trace ("[pREAtom]: parsed backreference, number: " ++ show number ++ " ,rest:" ++ rest) return (RBackref number)
     <|> do
       char '('
       regex <- pRE

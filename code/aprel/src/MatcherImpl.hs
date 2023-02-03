@@ -29,7 +29,13 @@ instance Applicative (Matcher d) where pure = return; (<*>) = ap
 -- the Matcher term constructor. Do not change the types!
 
 nextChar :: Matcher d Char
-nextChar = Matcher (\s i d ->  if i >= length s then trace("Fail on next char: " ++ show i ++ ", " ++ show (length s))  [] else trace ("Success on nextChar: " ++ show s ++ " " ++ show i ++ " " )[(s !! i, 1, d)])
+nextChar =
+  Matcher
+    ( \s i d ->
+        if i >= length s
+          then []
+          else [(s !! i, 1, d)]
+    )
 
 getData :: Matcher d d
 getData = Matcher (\_s i d -> return (d, i, d))
@@ -66,8 +72,6 @@ matchRE (RClass isComplement charSet) =
           || (not isComplement && c `S.notMember` charSet)
       )
       mfail
-    -- let s = "" ++ [c]
-    -- putData [s]
 matchRE (RSeq []) = return ()
 matchRE (RSeq (x : xs)) = do
   matchRE x
@@ -93,6 +97,5 @@ matchRE (RNeg re) = neg (matchRE re)
 
 matchTop :: RE -> String -> Maybe Captures
 matchTop re str = case runMatcher (matchRE re) str 0 [] of
-  s -> trace ("successMatchTop" ++ show s) Just []
-  [] -> trace "failedMatchTop" Nothing
-
+  [(_a, _i, captures)] -> Just captures
+  _s -> Nothing

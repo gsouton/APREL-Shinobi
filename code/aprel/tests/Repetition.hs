@@ -63,7 +63,7 @@ rudimentary =
     i6 = "a{1,}"
     i7 = "a{1,12}"
     i8 = "a{22,42}"
-    i9 = "a{5,0}"
+    i9 = "a{0,0}"
     i10 = "a{1}"
     i11 = "a{0}"
 
@@ -75,7 +75,7 @@ rudimentary =
     re6 = re3
     re7 = RRepeat (RClass False (S.fromList "a")) (1, 12)
     re8 = RRepeat (RClass False (S.fromList "a")) (22, 42)
-    re9 = RRepeat (RClass False (S.fromList "a")) (5, 0)
+    re9 = RRepeat (RClass False (S.fromList "a")) (0, 0)
     re10 = re3
     re11 = re1
 
@@ -153,7 +153,9 @@ shouldFail =
       testCaseBad i29 $
         parseRE i29,
       testCaseBad i30 $
-        parseRE i30
+        parseRE i30,
+      testCaseBad i31 $
+        parseRE i31
     ]
     where
     i1 = "{"
@@ -186,5 +188,6 @@ shouldFail =
     i28 = "a*?"
     i29 = "a?*"
     i30 = "a?*"
+    i31 = "a{5, 3}"
 
     

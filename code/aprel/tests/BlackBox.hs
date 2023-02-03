@@ -18,6 +18,8 @@ import Repetition
 import Conjunction
 import ConjunctionAndAlternation
 import Sequences
+import Class
+import MatcherTest
 ---
 
 main :: IO ()
@@ -35,7 +37,9 @@ tests =
       reRepetitionTests,
       reConjunctionTests,
       reConjunctionAndAlternationTests,
-      reSequenceTests
+      reSequenceTests,
+      reClassTests,
+      matcherTests
     ] -- replace this
 
 testCaseBad :: Show a => String -> Either String a -> TestTree
