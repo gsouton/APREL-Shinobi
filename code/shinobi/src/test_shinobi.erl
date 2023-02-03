@@ -2,6 +2,8 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
+
+
 % You are allowed to split your test code in as many files as you
 % think is appropriate, just remember that they should all start with
 % 'test_'.
@@ -14,7 +16,10 @@ test_all() ->
   eunit:test([prepare_shinobi(),
               register_command(),
               register_multiple_commands(),
-              register_command_should_fail()],
+              register_command_should_fail(),
+              setting_rudiment_operation(),
+              report_rudiment(),
+              ambush()],
              [verbose]).
 
 test_everything() ->
@@ -50,3 +55,37 @@ register_command_should_fail() ->
       ?assertEqual(ok, Res1),
       ?assertEqual({error, already_defined}, Res2)
    end}.
+
+setting_rudiment_operation() ->
+  {"Rudiment command",
+   fun() ->
+      {_, S} = shinobi:prepare(),
+      shinobi:register_command(S, ok, fun() -> timer:sleep(500), ok end),
+      ?assertMatch({ok, _}, shinobi:operation(S, {rudiment, ok, []}))
+   end}.
+
+report_rudiment() ->
+  {"Report after rudiment command",
+   fun() ->
+      {_, S} = shinobi:prepare(),
+      shinobi:register_command(S, ok, fun() -> timer:sleep(200), ok end),
+      {_, I} = shinobi:operation(S, {rudiment, ok, []}),
+      ?assertEqual({ongoing, 1}, shinobi:report(I)),
+      timer:sleep(300),
+      ?assertEqual({success, ok}, shinobi:report(I))
+   end}.
+
+
+ambush() ->
+  {"Setting an ambush",
+   fun() ->
+      {_, S} = shinobi:prepare(),
+      shinobi:register_command(S, ok, fun() -> ok end),
+      timer:sleep(200),
+      {_, I} = shinobi:operation(S, {rudiment, ok, []}),
+      shinobi:ambush(I, fun(Result) -> io:format("~p\n", [Result])
+                        end),
+      timer:sleep(200)
+   end}.
+
+

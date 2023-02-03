@@ -63,12 +63,12 @@ operation(Shinobi, Keikaku) ->
 gen_server:call(Shinobi, Keikaku).
 
 -spec ambush(operation_id(), fun((result()) -> any())) -> any().
-ambush(_OperationId, _Fun) ->
-    undefined.
+ambush(OperationId, Fun) ->
+    gen_server:cast(OperationId, {ambush, Fun}).
 
 -spec report(operation_id()) -> operation_status().
 report(OperationId) ->
-    operation:get_state(OperationId).
+    kunai:get_state(OperationId).
 
 % -spec validate(keikaku()) -> keikaku().
 validate({rudiment, Cmd, Arg}, State) ->
@@ -89,8 +89,14 @@ validate({trap, Limit}, _State) ->
     end;
 
             
-validate(_Keikaku, _State) ->
-    undefined.
+validate({progression, []}, _State) ->
+    {error, invalid_progression};
+
+validate({progression, [Head|Tail]}, State) ->
+    {progression, [validate(Head, State) | validate({progression, Tail}, State)]}; 
+
+validate({progression, [Head| []]}, State) ->
+    validate(Head, State).
 
 %%% Callbacks gen_server
 
