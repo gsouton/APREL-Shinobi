@@ -1,6 +1,5 @@
 # APREL-Shinobi
-Two projects implemented in a course of 6 for the exam of
-Advanced Programming at the University of Copenhagne KU.
+Advanced Programming, University of Copenhagen KU.
 
 # APREL: A regular expression library
 This is a library to parse regular expression implemented in Haskell.
